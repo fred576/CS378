@@ -1,14 +1,19 @@
 import numpy as np
 import pyaudio
-from scipy.io import wavfile as wav
-import matplotlib.pyplot as plt
+from statistics import mode
 from itertools import combinations
 
-#error correction
+# Generator matrix for [30, 20, 5] code with 10 paritty bits and min. distance between codewords 5
+# Picked from the internet - website detailed in design doc
 G = np.array([[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1], [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1], [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0], [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1], [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0], [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1], [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1], [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0]])
+# Parity check matrix for the same code, such that GH^T = 0
 H = np.concatenate(( G[:, 20:].T, np.eye(10)), axis=1)
 
 n = H.shape[1]
+# Using syndrome Decoding. All codewords are generated using linear combination of rows of G.
+# Thus if received codeword c* = c + e, where e is error bit with max bits 2
+# Hc* = Hc + He = 0 + He = He
+# thus by mapping He to e for each valid e with max bits 2, it is possible to know what e is, and then get c = c* + e as the true answer
 syndrome_map = {}
 for error_weight in range(1, 3):
     for error_indices in combinations(range(n), error_weight):
@@ -17,11 +22,6 @@ for error_weight in range(1, 3):
         syndrome = tuple(np.mod(np.dot(H, error_vector), 2))
         syndrome_map[syndrome] = error_vector
 
-#message encoding function
-def encode(message, G):
-    return np.mod(np.dot(message, G), 2)
-
-#message decoding function
 def decode(received, H, syndrome_map):
     received = np.array([int(x) for x in received])
     print(received)
@@ -30,44 +30,31 @@ def decode(received, H, syndrome_map):
     decoded = np.mod(received + error_vector, 2)
     return decoded
 
-
-#peak_detection
-def detect_peaks(x, num_bins):
-    binsize = len(x)//num_bins
-    bitstring = ""
-
-    for i in range(num_bins):
-        start = i * binsize
-        end = start + binsize
-        #current bin
-        x_bin = x[start:end]
-
-        #finding the maxima of the bin
-        middle_start = binsize // 2 - binsize//10
-        middle_end = binsize // 2 + binsize//10
-        middle_range_y = x_bin[middle_start:middle_end]
-    
-        middle_max = np.max(middle_range_y)
-        threshold = 0.55 * middle_max 
-
-        left_range_y = x_bin[:middle_start-binsize//8]
-        right_range_y = x_bin[middle_end+binsize//8:]
-
-        #threshold checking and intensity filtering for peak detection (TO BE DONE MANUALLY based on amplitude values)
-        if np.all(left_range_y < threshold) and np.all(right_range_y < threshold) and middle_max>1e5:
-            bitstring += '1' 
+def convert_new(l, freq_high):
+    i = 0
+    actual = []
+    ans = []
+    temp = []
+    # This function is used to convert the dominant frequency at each sampling point to an interval
+    for x in l:
+        if abs(x-freq_high)<1000:
+            if temp:
+                ans.append(temp)
+                temp = []
         else:
-            bitstring += '0'
-    
-    return bitstring    
+            temp.append(x)
+    if temp:
+        ans.append(temp)
+    # This part is used to remove anomalies that may occur in the transmitted frequencies
+    for l in ans:
+        if l.count(mode(l))>2:
+            actual.append(mode(l))
+    return actual
 
-def receive_bitstring_with_fft(sample_rate=44100, duration = 1.0):
+def listen_and_receive(freq_base=4000, bin_size=20, freq_high=8000, sample_rate=44100, duration=10.0):
     p = pyaudio.PyAudio()
-    base_freq = 4000
-    bin_size = 100 
-    num_bits = 35   
-    
-    chunk_size = int(sample_rate * duration)
+    chunk_duration = 0.05  # Check every 0.05 seconds
+    chunk_size = int(sample_rate * chunk_duration)
 
     stream = p.open(format=pyaudio.paInt16,
                     channels=1,
@@ -75,46 +62,44 @@ def receive_bitstring_with_fft(sample_rate=44100, duration = 1.0):
                     input=True,
                     frames_per_buffer=chunk_size)
 
-     #listening for bitstring 
-    print("Listening for bitstring...")
-    data = stream.read(chunk_size)
-    print("Received audio data.")
-
-    #taking fft of the given frequency
-    audio_signal = np.frombuffer(data, dtype=np.int16)
-    freqs = np.fft.fftfreq(len(audio_signal), 1/sample_rate)
-    fft_spectrum = np.abs(np.fft.fft(audio_signal))
-    positive_freqs = freqs[:len(freqs)//2]
-    positive_spectrum = fft_spectrum[:len(fft_spectrum)//2]
+    print("Listening for message...")
+    l = []
+    received_bits = ''
     
-    #clipping the frequency range
-    clip_start = np.searchsorted(positive_freqs, base_freq)
-    clip_end = np.searchsorted(positive_freqs, base_freq + num_bits * bin_size)
-    clipped_freqs = positive_freqs[clip_start:clip_end]
-    clipped_spectrum = positive_spectrum[clip_start:clip_end]
-    print(len(clipped_spectrum))
-    
-    #fft plot
-    plt.plot(clipped_freqs, clipped_spectrum)
-    plt.xlabel('Frequency (Hz)')
-    plt.ylabel('Amplitude')
-    plt.title('Clipped FFT Spectrum')
-    plt.grid(True)
+    for _ in range(int(duration / chunk_duration)):
+        data = stream.read(chunk_size)
+        audio_signal = np.frombuffer(data, dtype=np.int16)
 
-    bitstring = detect_peaks(clipped_spectrum, num_bits)
+        # FFT to determine the dominant frequency
+        freqs = np.fft.fftfreq(len(audio_signal), 1/sample_rate)
+        fft_spectrum = np.fft.fft(audio_signal)
+        clip_base = freq_base - 500
+        #remove the lower frequencies
+        fft_spectrum[freqs< clip_base] = 0
+        dominant_freq = abs(freqs[np.argmax(np.abs(fft_spectrum))])
+        # print(dominant_freq)
+        l.append(dominant_freq)
+    listof = convert_new(l, freq_high)
+    print(listof)
+    for x in listof[:5]:
+        freq = int((x-freq_base)/bin_size)
+        received_bits += '0'*(7 - len(str(bin(freq)[2:]))) + str(bin(freq)[2:])
+
     stream.stop_stream()
     stream.close()
     p.terminate()
+
+
+    if len(received_bits) != 35:
+        print(f"Warning: Received bitstring length ({len(received_bits)}) does not match expected length (35)")
     
-    print(f"Received bitstring: {bitstring}")
-    return bitstring
+    print(f"Received 35-bit message: {received_bits}")
+    return received_bits
 
-
-received = receive_bitstring_with_fft()
+# Example usage
+received = listen_and_receive()
+decoded = decode(received[5:], H, syndrome_map)
 length = int(received[:5], 2)
 print(length)
-decoded = decode(received[5:], H, syndrome_map)
-
 print(f"Decoded codeword : {decoded}")
 print(f"Actual hopefuully {decoded[:length]}")
-plt.show()
