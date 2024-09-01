@@ -3,76 +3,77 @@ import pyaudio
 import struct
 from itertools import combinations
 
-
-#error correction
 G = np.array([[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1], [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1], [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0], [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1], [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0], [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1], [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1], [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0]])
 H = np.concatenate(( G[:, 20:].T, np.eye(10)), axis=1)
 
-
-#message encoding function
 def encode(message, G):
     return np.mod(np.dot(message, G), 2)
 
-def transmit_bitstring(bitstring, length, sample_rate=44100, duration=7.0):
+def binary_array_to_string(binary_array):
+    return ''.join(str(bit) for bit in binary_array)
+
+def send_message(bitstring, freq_base=4000, bin_size=20, freq_high=8000, sample_rate=44100):
+    assert len(bitstring) == 35, "Bitstring must be 35 bits long"
+    
     p = pyaudio.PyAudio()
+    duration = 0.3  
+    chunk_size = 7  
 
-    base_freq = 4000
-    bin_size = 100
-    num_bits = len(bitstring)
+    chunks = [bitstring[i:i+chunk_size] for i in range(0, len(bitstring), chunk_size)]
 
-    t = np.linspace(0, duration, int(sample_rate * duration), False)
-    signal = np.zeros_like(t)
+    for i, chunk in enumerate(chunks):
+        value = int(chunk, 2)  # Convert chunk to an integer
+        freq = freq_base + bin_size * value  # Calculate frequency for this chunk
 
-    #sending frequencies for each bit
-    for i in range(num_bits):
-        bit = bitstring[i]
-        if bit == 1:
-            freq = base_freq + (i + 5.5) * bin_size
-            signal += np.sin(2 * np.pi * freq * t)
+        print(freq)
 
-    length_str = str(bin(length))[2:]#length bitstring in binary
-    length_str = '0'*(5 - len(length_str)) + length_str #zeropadding the length of string
-    print(length_str)
+        if(i == 0):
+            t = np.linspace(0, 10* duration, int(sample_rate * 10 * duration), False)
+        else:
+            t = np.linspace(0, duration, int(sample_rate * duration), False)
+        signal = np.sin(2 * np.pi * freq * t)
+        signal = np.int16(signal * 32767)  # Normalize to 16-bit range
+        
+        # Play the signal
+        stream = p.open(format=pyaudio.paInt16,
+                        channels=1,
+                        rate=sample_rate,
+                        output=True)
+        for sample in signal:
+            stream.write(struct.pack('h', sample))
+        stream.stop_stream()
+        stream.close()
 
-    #sending frequencies for preamble
-    for i in range(len(length_str)):
-        bit = int(length_str[i])
-        if bit == 1:
-            freq = base_freq + (i + 0.5) * bin_size
-            signal += np.sin(2 * np.pi * freq * t)
+        # Send high frequency as separator
+        t = np.linspace(0, duration, int(sample_rate * duration), False)
+        separator_signal = np.sin(2 * np.pi * freq_high * t)
+        separator_signal = np.int16(separator_signal * 32767)
+        stream = p.open(format=pyaudio.paInt16,
+                        channels=1,
+                        rate=sample_rate,
+                        output=True)
+        for sample in separator_signal:
+            stream.write(struct.pack('h', sample))
+        stream.stop_stream()
+        stream.close()
 
-    #sending signals
-    signal *= 32767 / np.max(np.abs(signal))
-    signal = signal.astype(np.int16)
-
-    stream = p.open(format=pyaudio.paInt16,
-                    channels=1,
-                    rate=sample_rate,
-                    output=True)
-
-    for sample in signal:
-        stream.write(struct.pack('h', sample))
-
-    stream.stop_stream()
-    stream.close()
     p.terminate()
+    print("Message sent successfully")
 
-    print("Bitstring transmitted successfully.")
-
+# Example usage
 bitstring = np.array([int(d) for d in input("Enter bitstring: ")])
-p,q = tuple(map(float, input().split()))#entering float number
+p,q = tuple(map(float, input().split()))
 print(f"Received codeword {bitstring}")
 
 padded_bitstring = bitstring.tolist() + [0]*(G.shape[0] - len(bitstring))
-
-#encoding message
 message = encode(padded_bitstring,G)
 print(f"Encoded message {message}")
 e_1, e_2 = np.ceil(p*len(message)), np.ceil(q*len(message))
-
-#corrupting message
 message[int(e_1)] ^= 1
 message[int(e_2)] ^= 1
 print(f"Corrupted message {message}")
 
-transmit_bitstring(message, len(bitstring))
+padded_length = '0' * (5 - len(bin(len(bitstring))[2:])) + bin(len(bitstring))[2:]
+print(padded_length)
+print(binary_array_to_string(message))
+send_message(padded_length + binary_array_to_string(message))
