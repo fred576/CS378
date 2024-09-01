@@ -3,7 +3,10 @@ import pyaudio
 import struct
 from itertools import combinations
 
+# Generator matrix for a [20, 30, 5] code with 10 parity bits
+# Picked from the internet, website detailed in the Design Doc
 G = np.array([[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1], [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1], [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0], [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1], [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0], [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1], [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1], [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0]])
+# Parity check matrix for the same code
 H = np.concatenate(( G[:, 20:].T, np.eye(10)), axis=1)
 
 def encode(message, G):
@@ -13,6 +16,7 @@ def binary_array_to_string(binary_array):
     return ''.join(str(bit) for bit in binary_array)
 
 def send_message(bitstring, freq_base=4000, bin_size=20, freq_high=8000, sample_rate=44100):
+    #Length is the first 5 bits, rest 30 bits are the message - 20 data + 10 parity bits
     assert len(bitstring) == 35, "Bitstring must be 35 bits long"
     
     p = pyaudio.PyAudio()
@@ -28,7 +32,7 @@ def send_message(bitstring, freq_base=4000, bin_size=20, freq_high=8000, sample_
         print(freq)
 
         if(i == 0):
-            t = np.linspace(0, 10* duration, int(sample_rate * 10 * duration), False)
+            t = np.linspace(0, 8* duration, int(sample_rate * 8 * duration), False)
         else:
             t = np.linspace(0, duration, int(sample_rate * duration), False)
         signal = np.sin(2 * np.pi * freq * t)
@@ -60,14 +64,14 @@ def send_message(bitstring, freq_base=4000, bin_size=20, freq_high=8000, sample_
     p.terminate()
     print("Message sent successfully")
 
-# Example usage
 bitstring = np.array([int(d) for d in input("Enter bitstring: ")])
-p,q = tuple(map(float, input().split()))
+p,q = tuple(map(float, input("Enter alpha and beta: ").split()))
 print(f"Received codeword {bitstring}")
 
 padded_bitstring = bitstring.tolist() + [0]*(G.shape[0] - len(bitstring))
 message = encode(padded_bitstring,G)
 print(f"Encoded message {message}")
+
 e_1, e_2 = np.ceil(p*len(message)), np.ceil(q*len(message))
 message[int(e_1)] ^= 1
 message[int(e_2)] ^= 1
