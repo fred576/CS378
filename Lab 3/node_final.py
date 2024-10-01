@@ -60,7 +60,7 @@ def convert_new(l, freq_high):
             actual.append(mode(l))
     return actual
 
-def RTS_sender(freqs, duration, sample_rate=44100):#sends RTS
+def frequency_sender(freqs, duration, sample_rate=44100):#sends RTS
     print(f"sending freqs: {freqs}")
     p = pyaudio.PyAudio()
     t = np.linspace(0, duration, int(sample_rate * duration), False)
@@ -84,12 +84,12 @@ def RTS_sender(freqs, duration, sample_rate=44100):#sends RTS
 def send_RTS(d, duration = 1):
     print("Sending RTS to destination ", d)
     if(d == 0):
-        RTS_sender([rts[i] for i in range(1, 4) if i!= node_id],duration)#for broadcast
+        frequency_sender([rts[i] for i in range(1, 4) if i!= node_id],duration)#for broadcast
     else:
-        RTS_sender([rts[d]],duration)#normal RTS
+        frequency_sender([rts[d]],duration)#normal RTS
     return
 
-def CTS_detector(freqs_to_detect, duration, sample_rate=44100):
+def frequency_detector(freqs_to_detect, duration, sample_rate=44100):
     p = pyaudio.PyAudio()
     chunk_duration = 0.05  # Check every 0.05 seconds
     chunk_size = int(sample_rate * chunk_duration)
@@ -171,9 +171,9 @@ def check_CTS(d, duration = 2):
     print("Checking CTS from destination ", d)
     f=[]
     if(d == 0):
-        f=CTS_detector([cts[d] for d in range(1, 4) if d!= node_id],duration)[0]
+        f=frequency_detector([cts[d] for d in range(1, 4) if d!= node_id],duration)[0]
     else:
-        f=CTS_detector([cts[d]],duration)[0]
+        f=frequency_detector([cts[d]],duration)[0]
     return [1]*len(f)==f
 
 def send_message(message, freq_base=4000, bin_size=20, freq_high=8000, sample_rate=44100):
@@ -289,7 +289,7 @@ def gotoreceive(duration, freq_base=4000, bin_size=20, freq_high=8000, sample_ra
     while(i<duration/chunk_duration):
         i+=1
         print(i)
-        x,y=CTS_detector([rts[d] for d in range(1, 4) if d!= node_id],1) 
+        x,y=frequency_detector([rts[d] for d in range(1, 4) if d!= node_id],1) 
         if(y):
             lastseen=i*chunk_duration
         if(x==[0]*len(x)):
@@ -300,13 +300,13 @@ def gotoreceive(duration, freq_base=4000, bin_size=20, freq_high=8000, sample_ra
             # duration+=5
             index = [i for i in range(1,4) if i != node_id][0]
             fr = cts[index]
-            RTS_sender([fr],2) #cts hai
+            frequency_sender([fr],2) #cts hai
             
         elif(x[1]):
             # duration+=5
             index = [i for i in range(1,4) if i != node_id][1]
             fr = cts[index]
-            RTS_sender([fr],2) #cts hai
+            frequency_sender([fr],2) #cts hai
         received = listen_and_receive()
         if(len(received) == 35):
             decoded = decode(received[5:], H, syndrome_map)
