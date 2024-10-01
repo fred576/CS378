@@ -15,12 +15,9 @@ universal_cts = [{}, {2: 7400, 3: 7800}, {1:7400, 3: 7000}, {1: 7800, 2: 7000}]
 rts = universal_rts[node_id]
 cts = universal_cts[node_id]
 
-# Generator matrix for [30, 20, 5] code with 10 paritty bits and min. distance between codewords 5
-# Picked from the internet - website detailed in design doc
 G = np.array([[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1], [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1], [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0], [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1], [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0], [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1], [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1], [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0]])
-# Parity check matrix for the same code, such that GH^T = 0
 H = np.concatenate(( G[:, 20:].T, np.eye(10)), axis=1)
-
+#taken from public website
 n = H.shape[1]
 # Using syndrome Decoding. All codewords are generated using linear combination of rows of G.
 # Thus if received codeword c* = c + e, where e is error bit with max bits 2
@@ -63,7 +60,7 @@ def convert_new(l, freq_high):
             actual.append(mode(l))
     return actual
 
-def RTS_sender(freqs, duration, sample_rate=44100):
+def RTS_sender(freqs, duration, sample_rate=44100):#sends RTS
     print(f"sending freqs: {freqs}")
     p = pyaudio.PyAudio()
     t = np.linspace(0, duration, int(sample_rate * duration), False)
@@ -87,9 +84,9 @@ def RTS_sender(freqs, duration, sample_rate=44100):
 def send_RTS(d, duration = 1):
     print("Sending RTS to destination ", d)
     if(d == 0):
-        RTS_sender([rts[i] for i in range(1, 4) if i!= node_id],duration)
+        RTS_sender([rts[i] for i in range(1, 4) if i!= node_id],duration)#for broadcast
     else:
-        RTS_sender([rts[d]],duration)
+        RTS_sender([rts[d]],duration)#normal RTS
     return
 
 def CTS_detector(freqs_to_detect, duration, sample_rate=44100):
@@ -151,7 +148,7 @@ def CTS_detector(freqs_to_detect, duration, sample_rate=44100):
         # plt.title('FFT Spectrum')
         # plt.savefig(f'total_fft.png')
         # plt.close()
-        peak = np.max(np.abs(total_fft))
+        peak = np.max(np.abs(total_fft))#check the peak frequency
         average_noise = np.mean(np.abs(total_fft))
     stream.stop_stream()
     stream.close()
@@ -188,7 +185,7 @@ def send_message(message, freq_base=4000, bin_size=20, freq_high=8000, sample_ra
     padded_length = '0' * (5 - len(bin(len(message))[2:])) + bin(len(message))[2:]
     bitstring = padded_length + ''.join([str(x) for x in encoded_message])
     
-    assert len(bitstring) == 35, "Bitstring must be 35 bits long"
+    assert len(bitstring) == 35, "Bitstring must be 35 bits long" #Warn (error in transmission)
     
     p = pyaudio.PyAudio()
     duration = 0.3  
@@ -317,7 +314,7 @@ def gotoreceive(duration, freq_base=4000, bin_size=20, freq_high=8000, sample_ra
             # print(length)
             # print(f"Decoded codeword : {decoded}")
             # print(f"Actual hopefuully {decoded[:length]}")
-            time = datetime.datetime.now().strftime("%H:%M:%S")
+            time = datetime.datetime.now().strftime("%H:%M:%S") #current time
             print(f"[RECVD] {decoded[:length]} from NODE ID: {index} at {time}")
         else:
             print("Error in receiving, going back to loop")
@@ -338,12 +335,12 @@ def sending_and_receiving():
         else:
             bitstring = messages[0]
             destination = destinations[0]
-            gotoreceive(np.random.rand()*4 + 2.1)
+            gotoreceive(np.random.rand()*4 + 2.1) #Random Backoff
             send_RTS(destination)
             if(check_CTS(destination)==0):
                 continue
             send_message(bitstring)
-            time = datetime.datetime.now().strftime("%H:%M:%S")
+            time = datetime.datetime.now().strftime("%H:%M:%S") # time current
             print(f"[SENT] {bitstring} to NODE ID: {destination} at {time}")
             messages.pop(0)
             destinations.pop(0)
@@ -357,7 +354,7 @@ def print_on_enter():
             all_messages.pop(0)
             all_destinations.pop(0)
         
-m1, dest1 = input().split()
+m1, dest1 = input().split() #Message space separated with dest node id
 m2, dest2 = input().split()
 dest1 = int(dest1)
 dest2 = int(dest2)
@@ -370,7 +367,7 @@ if(dest2 != -1):
 # all_messages = [m1, m2]
 # all_destinations = [dest1, dest2]
 
-task_thread = threading.Thread(target=sending_and_receiving)
+task_thread = threading.Thread(target=sending_and_receiving) #Gen AI
 task_thread.daemon = True
 task_thread.start()
 
