@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import threading
 import datetime
 
-node_id = None #enter node id here
+node_id = 1 #enter node id here
 all_messages = []
 all_destinations = []
 universal_rts = [{}, {2: 7200, 3: 7600}, {1:7200, 3: 6800}, {1: 7600, 2: 6800}]
@@ -359,14 +359,16 @@ def print_on_enter():
         
 m1, dest1 = input().split()
 m2, dest2 = input().split()
+dest1 = int(dest1)
+dest2 = int(dest2)
 if(dest1 != -1):
     all_messages.append(m1)
     all_destinations.append(dest1)
 if(dest2 != -1):
     all_messages.append(m2)
     all_destinations.append(dest2)
-all_messages = [m1, m2]
-all_destinations = [dest1, dest2]
+# all_messages = [m1, m2]
+# all_destinations = [dest1, dest2]
 
 task_thread = threading.Thread(target=sending_and_receiving)
 task_thread.daemon = True
