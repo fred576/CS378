@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import threading
 import datetime
 
-node_id = 1 #enter node id here
+node_id = None #enter node id here
 all_messages = []
 all_destinations = []
 universal_rts = [{}, {2: 7200, 3: 7600}, {1:7200, 3: 6800}, {1: 7600, 2: 6800}]
